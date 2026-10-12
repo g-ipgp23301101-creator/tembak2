@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Khairul Amir Usahawan Hebat - MISI AR & SENTUH</title>
+  
+  <!-- MediaPipe Hands & Camera Utils -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --primary-blue: #00f0ff;
+      --neon-yellow: #ffee00;
+      --navy-bg: #0a0e27;
+      --card-bg: rgba(10, 20, 50, 0.88);
+      --red-chili: #ff2a4b;
+      --chili-green: #2ecc71;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #050814;
+      color: #fff;
+    }
+
+    /* 1. SUSUNAN LAPISAN Z-INDEX & RESPONSIVE CONTAINER */
+    #app-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* LAPISAN 1: Video Kamera */
+    #webcam {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+      display: block;
+    }
+
+    /* LAPISAN 2: Overlay Latar Belakang Tematik & Gradient */
+    .overlay-gradient {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, rgba(10,14,39,0.35) 0%, rgba(5,10,25,0.78) 100%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* LAPISAN 3: Canvas Partikel & Hiasan Keusahawanan */
+    #particle-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    /* LAPISAN 4: UI & ELEMEN INTERAKTIF */
+    .ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 15px 20px;
+      pointer-events: none;
+    }
+
+    .interactive {
+      pointer-events: auto;
+    }
+
+    /* HEADER & STATS */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 20, 50, 0.85);
+      padding: 10px 20px;
+      border-radius: 16px;
+      border: 2px solid var(--primary-blue);
+      box-shadow: 0 0 15px var(--primary-blue);
+      backdrop-filter: blur(8px);
+    }
+
+    .title-box h1 {
+      font-size: 1.5rem;
+      color: var(--neon-yellow);
+      text-shadow: 0 0 10px var(--neon-yellow);
+      letter-spacing: 1px;
+    }
+
+    .title-box h2 {
+      font-size: 0.85rem;
+      color: var(--primary-blue);
+      text-shadow: 0 0 5px var(--primary-blue);
+    }
+
+    .status-badge {
+      background: rgba(0, 240, 255, 0.2);
+      border: 1px solid var(--primary-blue);
+      color: var(--primary-blue);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      box-shadow: 0 0 8px var(--primary-blue);
+    }
+
+    .stats-bar {
+      display: flex;
+      gap: 15px;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--neon-yellow);
+      text-shadow: 0 0 8px rgba(255, 238, 0, 0.6);
+    }
+
+    .audio-controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-icon {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--primary-blue);
+      color: var(--primary-blue);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 8px var(--primary-blue);
+    }
+
+    .btn-icon.off {
+      opacity: 0.4;
+      border-color: #888;
+      color: #888;
+      box-shadow: none;
+    }
+
+    /* MASKOT KHAIRUL AMIR (SVG Vector) */
+    .mascot-container {
+      position: absolute;
+      bottom: 60px;
+      left: 15px;
+      width: 110px;
+      height: 150px;
+      z-index: 4;
+      pointer-events: none;
+      filter: drop-shadow(0 0 10px var(--primary-blue));
+    }
+
+    /* PANEL SOALAN HOLOGRAM */
+    .question-box {
+      background: var(--card-bg);
+      border: 2px solid var(--neon-yellow);
+      box-shadow: 0 0 20px rgba(255, 238, 0, 0.4);
+      border-radius: 16px;
+      padding: 16px 24px;
+      text-align: center;
+      max-width: 850px;
+      margin: 5px auto;
+      backdrop-filter: blur(8px);
+    }
+
+    .question-box h3 {
+      color: var(--primary-blue);
+      font-size: 1rem;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .question-box p {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.35;
+    }
+
+    /* KAD JAWAPAN */
+    .answers-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 1000px;
+      margin: 0 auto 10px auto;
+      width: 100%;
+    }
+
+    .card-answer {
+      background: var(--card-bg);
+      border: 2px solid var(--primary-blue);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: flex-start;
+      position: relative;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+      backdrop-filter: blur(8px);
+    }
+
+    .card-answer.aimed {
+      border-color: var(--neon-yellow);
+      box-shadow: 0 0 30px var(--neon-yellow), inset 0 0 15px rgba(255, 238, 0, 0.3);
+      transform: scale(1.03);
+    }
+
+    .card-answer .label-badge {
+      background: var(--primary-blue);
+      color: #000;
+      font-weight: bold;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      box-shadow: 0 0 8px var(--primary-blue);
+    }
+
+    .card-answer p {
+      font-size: 1.05rem;
+      line-height: 1.35;
+      color: #fff;
+      text-align: left;
+    }
+
+    /* FOOTER & KAWALAN MOD */
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 20, 50, 0.7);
+      padding: 8px 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+    }
+
+    .instruction-text {
+      font-size: 0.9rem;
+      color: var(--neon-yellow);
+    }
+
+    .mode-toggle-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-mode {
+      background: rgba(0, 240, 255, 0.15);
+      border: 1px solid var(--primary-blue);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+
+    .btn-mode.active {
+      background: var(--primary-blue);
+      color: #000;
+      box-shadow: 0 0 12px var(--primary-blue);
+    }
+
+    /* SASARAN RETICLE & LASER */
+    #aim-reticle {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border: 3px solid var(--neon-yellow);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 5;
+      transform: translate(-50%, -50%);
+      display: none;
+      box-shadow: 0 0 20px var(--neon-yellow);
+    }
+
+    #aim-reticle::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 10px;
+      height: 10px;
+      background: var(--red-chili);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px var(--red-chili);
+    }
+
+    #laser-beam {
+      position: absolute;
+      height: 4px;
+      background: linear-gradient(90deg, var(--neon-yellow), var(--red-chili));
+      box-shadow: 0 0 10px var(--neon-yellow);
+      z-index: 5;
+      pointer-events: none;
+      transform-origin: 0 50%;
+      display: none;
+    }
+
+    /* PANEL MODAL & DIALOG SEMAK */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(5, 10, 25, 0.88);
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .modal-card {
+      background: var(--navy-bg);
+      border: 3px solid var(--primary-blue);
+      box-shadow: 0 0 35px var(--primary-blue);
+      border-radius: 24px;
+      padding: 30px;
+      text-align: center;
+      max-width: 620px;
+      width: 90%;
+    }
+
+    .modal-card h2 {
+      font-size: 2rem;
+      color: var(--neon-yellow);
+      margin-bottom: 12px;
+      text-shadow: 0 0 12px var(--neon-yellow);
+    }
+
+    .modal-card p {
+      font-size: 1.15rem;
+      margin-bottom: 18px;
+      line-height: 1.45;
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, #00f0ff, #0077ff);
+      border: none;
+      color: #000;
+      font-weight: bold;
+      font-size: 1.15rem;
+      padding: 12px 26px;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 20px var(--primary-blue);
+      margin: 6px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-action:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 30px var(--primary-blue);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app-container">
+    <!-- LAPISAN 1 -->
+    <video id="webcam" autoplay playsinline muted></video>
+
+    <!-- LAPISAN 2 -->
+    <div class="overlay-gradient"></div>
+
+    <!-- LAPISAN 3 -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- MASKOT KHAIRUL AMIR (Songkok, Baju Biru, Apron, Cermin Mata) -->
+    <div class="mascot-container">
+      <svg viewBox="0 0 100 140" width="100%" height="100%">
+        <!-- Badan / Baju Biru -->
+        <path d="M20,90 Q50,80 80,90 L85,140 L15,140 Z" fill="#0055ff"/>
+        <!-- Apron Gelap -->
+        <path d="M32,95 L68,95 L72,140 L28,140 Z" fill="#111827"/>
+        <text x="50" y="115" font-size="6" fill="#ffee00" text-anchor="middle" font-weight="bold">SAMBAL</text>
+        <text x="50" y="123" font-size="5" fill="#ffffff" text-anchor="middle">MALAYSIA</text>
+        <!-- Muka -->
+        <ellipse cx="50" cy="55" rx="22" ry="25" fill="#f1c27d"/>
+        <!-- Cermin Mata -->
+        <rect x="34" y="48" width="13" height="10" rx="2" fill="none" stroke="#000" stroke-width="2"/>
+        <rect x="53" y="48" width="13" height="10" rx="2" fill="none" stroke="#000" stroke-width="2"/>
+        <line x1="47" y1="53" x2="53" y2="53" stroke="#000" stroke-width="2"/>
+        <!-- Senyuman -->
+        <path d="M42,68 Q50,75 58,68" fill="none" stroke="#000" stroke-width="2"/>
+        <!-- Songkok Hitam -->
+        <path d="M28,38 L72,38 L70,18 L30,18 Z" fill="#000000"/>
+      </svg>
+    </div>
+
+    <!-- LAPISAN 5: SASARAN & LASER -->
+    <div id="aim-reticle"></div>
+    <div id="laser-beam"></div>
+
+    <!-- LAPISAN 4: UI & KONTROL -->
+    <div class="ui-layer">
+      <header class="interactive">
+        <div class="title-box">
+          <h1>KHAIRUL AMIR</h1>
+          <h2>USAHAWAN HEBAT — MISI AR</h2>
+        </div>
+
+        <div id="hand-status" class="status-badge">MOD SENTUH AKTIF</div>
+
+        <div class="stats-bar">
+          <div class="stat-item">🪙 <span id="coin-count">0</span></div>
+          <div class="stat-item">⭐ <span id="score-count">0</span></div>
+          <div class="stat-item">📌 <span id="progress-count">1/6</span></div>
+        </div>
+
+        <div class="audio-controls">
+          <button id="btn-music" class="btn-icon">🎵</button>
+          <button id="btn-sfx" class="btn-icon">🔊</button>
+        </div>
+      </header>
+
+      <!-- KAD SOALAN -->
+      <div id="question-box" class="question-box">
+        <h3>SOALAN <span id="q-num">1</span></h3>
+        <p id="q-text">Teks soalan akan dipaparkan di sini...</p>
+      </div>
+
+      <!-- KAD JAWAPAN -->
+      <div id="answers-box" class="answers-container interactive">
+        <!-- Generasi Dinamik -->
+      </div>
+
+      <!-- FOOTER -->
+      <footer class="interactive">
+        <div id="instruction-note" class="instruction-text">
+          💡 Halo sasaran dengan jari telunjuk & cubit ibu jari untuk menembak, atau sentuh terus kad jawapan.
+        </div>
+        <div class="mode-toggle-group">
+          <button id="btn-mode-camera" class="btn-mode active">MOD KAMERA</button>
+          <button id="btn-mode-touch" class="btn-mode">MOD SENTUH</button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- SKRIN PEMBUKAAN -->
+    <div id="modal-start" class="modal-overlay interactive">
+      <div class="modal-card">
+        <h2>KHAIRUL AMIR<br><span style="color:#00f0ff">USAHAWAN HEBAT</span></h2>
+        <p style="color: var(--neon-yellow); font-weight: bold;">🎯 MISI AR & SENTUH</p>
+        <p>Pilih mod pilihan anda: Gunakan pengesanan tangan AR kamera iPad atau sentuh terus kad jawapan untuk menembak!</p>
+        <button id="btn-start" class="btn-action">MULA MISI</button>
+      </div>
+    </div>
+
+    <!-- PANEL SEMAK JAWAPAN SEBENAR -->
+    <div id="modal-feedback" class="modal-overlay interactive hidden">
+      <div class="modal-card">
+        <h2 id="feedback-title">JAWAPAN SEBENAR</h2>
+        <p id="feedback-status" style="font-size: 1.3rem; font-weight: bold;"></p>
+        <div style="background: rgba(0,240,255,0.1); border: 1px solid var(--primary-blue); padding: 14px; border-radius: 12px; margin-bottom: 18px;">
+          <p id="feedback-correct-text" style="color: var(--neon-yellow); margin: 0;"></p>
+        </div>
+        <div id="feedback-actions">
+          <button id="btn-retry" class="btn-action hidden" style="background: linear-gradient(135deg, #ff2a4b, #ff7700);">CUBA LAGI</button>
+          <button id="btn-next" class="btn-action">SOALAN SETERUSNYA</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SKRIN PENUTUP -->
+    <div id="modal-end" class="modal-overlay interactive hidden">
+      <div class="modal-card">
+        <h2>🏆 MISI SELESAI! 🏆</h2>
+        <p style="color: var(--neon-yellow); font-weight: bold;">"Tahniah, detektif usahawan! Kamu berjaya menyelesaikan semua misi Khairul Amir!"</p>
+        <div style="font-size: 1.3rem; margin: 15px 0; color: #fff;">
+          <p>Mata Keseluruhan: <span id="final-score" style="color:var(--neon-yellow)">0</span></p>
+          <p>Syiling Emas: 🪙 <span id="final-coins" style="color:var(--neon-yellow)">0</span></p>
+          <p>Jawapan Betul: <span id="final-correct" style="color:var(--primary-blue)">0</span>/6</p>
+        </div>
+        <div>
+          <button id="btn-restart" class="btn-action">MAIN SEMULA</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* ==================================================
+       BAHAGIAN 7: DATA 6 SOALAN PDP BAHASA MELAYU
+       ================================================== */
+    const QUESTIONS = [
+      {
+        q: "Siapakah nama dan apakah kerjaya usahawan ini?",
+        options: [
+          { text: "Khairul Amir, guru dan peniaga pakaian.", status: "SALAH", label: "A" },
+          { text: "Khairul Amir, pencipta kandungan dan usahawan makanan.", status: "BETUL", label: "B" },
+          { text: "Khairul Amir, jurutera yang menghasilkan peralatan dapur.", status: "SALAH", label: "C" }
+        ],
+        realAnswer: "Khairul Amir ialah seorang pencipta kandungan dan usahawan makanan."
+      },
+      {
+        q: "Apakah produk yang dihasilkan oleh Khairul Amir dan apakah nama yang tertera pada label produk tersebut?",
+        options: [
+          { text: "Sos tomato berlabel Sambal Malaysia.", status: "SALAH", label: "A" },
+          { text: "Sambal berlabel Sambal Malaysia.", status: "BETUL", label: "B" },
+          { text: "Sambal berlabel Sos Tomato Malaysia.", status: "SALAH", label: "C" }
+        ],
+        realAnswer: "Khairul Amir menghasilkan produk sambal yang berlabel Sambal Malaysia."
+      },
+      {
+        q: "Apakah cabaran yang dihadapi oleh usahawan apabila produknya semakin dikenali?",
+        options: [
+          { text: "Perniagaannya kehilangan semua pelanggan.", status: "SALAH", label: "A" },
+          { text: "Tempahan semakin meningkat dan lebih banyak pesanan perlu diuruskan.", status: "BETUL", label: "B" },
+          { text: "Pelanggan berhenti membeli produknya kerana harga terlalu mahal.", status: "SALAH", label: "C" }
+        ],
+        realAnswer: "Cabaran yang dihadapi ialah tempahan semakin meningkat dan lebih banyak pesanan perlu diuruskan."
+      },
+      {
+        q: "Apakah tindakan yang dilakukan untuk memenuhi permintaan pelanggan?",
+        options: [
+          { text: "Mengurangkan pengeluaran dan menghentikan penerimaan tempahan.", status: "SALAH", label: "A" },
+          { text: "Meningkatkan pengeluaran tetapi membiarkan tempahan tidak teratur.", status: "SALAH", label: "B" },
+          { text: "Meningkatkan pengeluaran dan menguruskan tempahan dengan lebih teratur.", status: "BETUL", label: "C" }
+        ],
+        realAnswer: "Khairul Amir meningkatkan pengeluaran dan menguruskan tempahan dengan lebih teratur."
+      },
+      {
+        q: "Apakah ciri yang perlu ada pada seorang usahawan?",
+        options: [
+          { text: "Berani mencuba, tidak mudah berputus asa dan sentiasa berusaha untuk maju.", status: "BETUL", label: "A" },
+          { text: "Berani mencuba tetapi mudah berputus asa apabila menghadapi masalah.", status: "SALAH", label: "B" },
+          { text: "Menunggu orang lain menyelesaikan semua masalah perniagaan.", status: "SALAH", label: "C" }
+        ],
+        realAnswer: "Seorang usahawan perlu berani mencuba, tidak mudah berputus asa dan sentiasa berusaha untuk maju."
+      },
+      {
+        q: "Apakah pencapaian yang telah dicapai oleh usahawan?",
+        options: [
+          { text: "Perniagaannya ditutup kerana tiada pelanggan.", status: "SALAH", label: "A" },
+          { text: "Perniagaannya terus berkembang dan semakin dikenali oleh pelanggan di seluruh Malaysia.", status: "BETUL", label: "B" },
+          { text: "Perniagaannya hanya dikenali oleh beberapa orang pelanggan di kawasan rumahnya.", status: "SALAH", label: "C" }
+        ],
+        realAnswer: "Perniagaan Khairul Amir terus berkembang dan semakin dikenali oleh pelanggan di seluruh Malaysia."
+      }
+    ];
+
+    /* ==================================================
+       BAHAGIAN 9: WEB AUDIO API SYNTHESIZER
+       ================================================== */
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.musicOn = true;
+        this.sfxOn = true;
+      }
+
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      }
+
+      playShoot() {
+        if (!this.sfxOn || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(850, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+
+      playExplosion() {
+        if (!this.sfxOn || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(25, this.ctx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.35);
+      }
+
+      playWin() {
+        if (!this.sfxOn || !this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.08);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.08 + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.08);
+          osc.stop(this.ctx.currentTime + idx * 0.08 + 0.2);
+        });
+      }
+
+      playWrong() {
+        if (!this.sfxOn || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(130, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.3);
+      }
+    }
+
+    const audio = new SoundFX();
+
+    /* ==================================================
+       STATE UTAMA PERMAINAN
+       ================================================== */
+    let currentQIndex = 0;
+    let score = 0;
+    let coins = 0;
+    let correctCount = 0;
+    let currentShuffledOptions = [];
+    let isAimingLocked = false;
+    let hoveredCardIndex = -1;
+    let isTriggerPressed = false;
+    let currentMode = 'CAMERA'; // 'CAMERA' atau 'TOUCH'
+    let cameraStarted = false;
+    let cameraInstance = null;
+
+    // Smoothing koordinat jari
+    let smoothX = 0;
+    let smoothY = 0;
+
+    // DOM Elements
+    const videoElement = document.getElementById('webcam');
+    const handStatus = document.getElementById('hand-status');
+    const reticle = document.getElementById('aim-reticle');
+    const laserBeam = document.getElementById('laser-beam');
+    const answersBox = document.getElementById('answers-box');
+
+    /* ANIMASI LATAR BELAKANG (Partikel, Cili & Syiling Emas) */
+    const pCanvas = document.getElementById('particle-canvas');
+    const pCtx = pCanvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      pCanvas.width = window.innerWidth;
+      pCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * pCanvas.width;
+        this.y = Math.random() * pCanvas.height;
+        this.type = Math.random() > 0.7 ? 'COIN' : (Math.random() > 0.85 ? 'CHILI' : 'DOT');
+        this.size = this.type === 'DOT' ? (Math.random() * 3 + 1) : (Math.random() * 12 + 10);
+        this.speedY = Math.random() * 0.8 + 0.3;
+        this.color = Math.random() > 0.5 ? '#00f0ff' : '#ffee00';
+      }
+      update() {
+        this.y -= this.speedY;
+        if (this.y < 0) this.reset();
+      }
+      draw() {
+        if (this.type === 'DOT') {
+          pCtx.fillStyle = this.color;
+          pCtx.beginPath();
+          pCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          pCtx.fill();
+        } else if (this.type === 'COIN') {
+          pCtx.fillStyle = '#ffee00';
+          pCtx.beginPath();
+          pCtx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+          pCtx.fill();
+          pCtx.strokeStyle = '#ffa500';
+          pCtx.stroke();
+        } else {
+          // Cili Merah Ringkas
+          pCtx.fillStyle = '#ff2a4b';
+          pCtx.beginPath();
+          pCtx.ellipse(this.x, this.y, this.size / 3, this.size / 1.5, Math.PI / 4, 0, Math.PI * 2);
+          pCtx.fill();
+        }
+      }
+    }
+
+    for (let i = 0; i < 40; i++) particles.push(new Particle());
+
+    function animateParticles() {
+      pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+      particles.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    /* ==================================================
+       BAHAGIAN 7: PENYUSUNAN SOALAN & ACAKAN JAWAPAN
+       ================================================== */
+    function loadQuestion(index) {
+      isAimingLocked = false;
+      hoveredCardIndex = -1;
+
+      const qData = QUESTIONS[index];
+      document.getElementById('q-num').innerText = index + 1;
+      document.getElementById('q-text').innerText = qData.q;
+      document.getElementById('progress-count').innerText = `${index + 1}/6`;
+
+      // Acak pilihan jawapan A, B, C secara rawak
+      currentShuffledOptions = [...qData.options].sort(() => Math.random() - 0.5);
+
+      answersBox.innerHTML = '';
+      const labels = ['A', 'B', 'C'];
+      currentShuffledOptions.forEach((opt, idx) => {
+        const card = document.createElement('div');
+        card.className = 'card-answer';
+        card.dataset.index = idx;
+        card.innerHTML = `
+          <div class="label-badge">${labels[idx]}</div>
+          <p>${opt.text}</p>
+        `;
+
+        // Mod Sentuh Event Listener
+        card.addEventListener('click', () => {
+          if (currentMode === 'TOUCH' && !isAimingLocked) {
+            shootAnswer(idx);
+          }
+        });
+
+        answersBox.appendChild(card);
+      });
+    }
+
+    /* ==================================================
+       BAHAGIAN 6: ANIMASI TEMBAKAN & LETUPAN
+       ================================================== */
+    function shootAnswer(cardIdx) {
+      if (isAimingLocked || cardIdx < 0) return;
+      isAimingLocked = true;
+
+      const selectedCard = answersBox.children[cardIdx];
+      const rect = selectedCard.getBoundingClientRect();
+      const targetX = rect.left + rect.width / 2;
+      const targetY = rect.top + rect.height / 2;
+
+      let startX = window.innerWidth / 2;
+      let startY = window.innerHeight;
+
+      if (currentMode === 'CAMERA' && reticle.style.display !== 'none') {
+        startX = parseFloat(reticle.style.left) || startX;
+        startY = parseFloat(reticle.style.top) || startY;
+      }
+
+      // Animasi Pancaran Laser
+      audio.playShoot();
+      const dx = targetX - startX;
+      const dy = targetY - startY;
+      const dist = Math.hypot(dx, dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+      laserBeam.style.left = `${startX}px`;
+      laserBeam.style.top = `${startY}px`;
+      laserBeam.style.width = `${dist}px`;
+      laserBeam.style.transform = `rotate(${angle}deg)`;
+      laserBeam.style.display = 'block';
+
+      setTimeout(() => {
+        laserBeam.style.display = 'none';
+
+        // Animasi Letupan Kad Jawapan
+        audio.playExplosion();
+        selectedCard.style.transform = 'scale(0.01)';
+        selectedCard.style.opacity = '0';
+        selectedCard.style.transition = 'all 0.4s ease-out';
+
+        setTimeout(() => {
+          showFeedback(currentShuffledOptions[cardIdx]);
+        }, 400);
+      }, 150);
+    }
+
+    function showFeedback(choice) {
+      const modal = document.getElementById('modal-feedback');
+      const statusText = document.getElementById('feedback-status');
+      const correctText = document.getElementById('feedback-correct-text');
+      const btnRetry = document.getElementById('btn-retry');
+
+      correctText.innerText = QUESTIONS[currentQIndex].realAnswer;
+      modal.classList.remove('hidden');
+
+      if (choice.status === "BETUL") {
+        audio.playWin();
+        statusText.style.color = "#00f0ff";
+        statusText.innerText = "TAHNIAH! JAWAPAN KAMU BETUL!";
+        score += 100;
+        coins += 10;
+        correctCount++;
+        document.getElementById('score-count').innerText = score;
+        document.getElementById('coin-count').innerText = coins;
+        btnRetry.classList.add('hidden');
+      } else {
+        audio.playWrong();
+        statusText.style.color = "#ff2a4b";
+        statusText.innerText = "BELUM TEPAT! JOM SEMAK JAWAPAN.";
+        btnRetry.classList.remove('hidden');
+      }
+    }
+
+    /* ==================================================
+       BAHAGIAN 4: AR MEDIAPIPE HAND TRACKING & SMOOTHING
+       ================================================== */
+    function onHandResults(results) {
+      if (currentMode !== 'CAMERA') return;
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        handStatus.innerText = "TANGAN DIKESAN";
+        handStatus.style.borderColor = "#ffee00";
+        handStatus.style.color = "#ffee00";
+
+        const landmarks = results.multiHandLandmarks[0];
+        const indexTip = landmarks[8];
+        const rawX = (1 - indexTip.x) * window.innerWidth;
+        const rawY = indexTip.y * window.innerHeight;
+
+        // Pelicinan Pergerakan EMA (Exponential Moving Average)
+        smoothX = smoothX + (rawX - smoothX) * 0.35;
+        smoothY = smoothY + (rawY - smoothY) * 0.35;
+
+        reticle.style.display = 'block';
+        reticle.style.left = `${smoothX}px`;
+        reticle.style.top = `${smoothY}px`;
+
+        if (!isAimingLocked) {
+          checkReticleHover(smoothX, smoothY);
+
+          // PING / CUBIT IBU JARI & TELUNJUK (GERAKAN PICU)
+          const thumbTip = landmarks[4];
+          const distance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+
+          if (distance < 0.08) {
+            if (!isTriggerPressed) {
+              isTriggerPressed = true;
+              if (hoveredCardIndex !== -1) {
+                shootAnswer(hoveredCardIndex);
+              }
+            }
+          } else {
+            isTriggerPressed = false;
+          }
+        }
+      } else {
+        handStatus.innerText = "SILA TUNJUK TANGAN";
+        handStatus.style.borderColor = "#00f0ff";
+        handStatus.style.color = "#00f0ff";
+        reticle.style.display = 'none';
+      }
+    }
+
+    function checkReticleHover(rx, ry) {
+      const cards = document.querySelectorAll('.card-answer');
+      let foundHover = -1;
+
+      cards.forEach((card, idx) => {
+        const rect = card.getBoundingClientRect();
+        if (rx >= rect.left && rx <= rect.right && ry >= rect.top && ry <= rect.bottom) {
+          card.classList.add('aimed');
+          foundHover = idx;
+        } else {
+          card.classList.remove('aimed');
+        }
+      });
+
+      hoveredCardIndex = foundHover;
+    }
+
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.6
+    });
+
+    hands.onResults(onHandResults);
+
+    function startCamera() {
+      if (cameraStarted) return;
+      cameraInstance = new Camera(videoElement, {
+        onFrame: async () => {
+          if (currentMode === 'CAMERA') {
+            await hands.send({ image: videoElement });
+          }
+        },
+        width: 1280,
+        height: 720,
+        facingMode: "user"
+      });
+
+      cameraInstance.start().then(() => {
+        cameraStarted = true;
+      }).catch((err) => {
+        console.warn("Kamera tidak dapat diaktifkan, bertukar ke Mod Sentuh.", err);
+        switchMode('TOUCH');
+        alert("Kamera tidak dijumpai atau kebenaran ditolak. Permainan telah bertukar ke MOD SENTUH.");
+      });
+    }
+
+    /* ==================================================
+       BAHAGIAN 5: PERTUKARAN MOD PERMAINAN
+       ================================================== */
+    function switchMode(mode) {
+      currentMode = mode;
+      const btnCam = document.getElementById('btn-mode-camera');
+      const btnTouch = document.getElementById('btn-mode-touch');
+
+      if (mode === 'CAMERA') {
+        btnCam.classList.add('active');
+        btnTouch.classList.remove('active');
+        handStatus.innerText = "SILA TUNJUK TANGAN";
+        startCamera();
+      } else {
+        btnTouch.classList.add('active');
+        btnCam.classList.remove('active');
+        handStatus.innerText = "MOD SENTUH AKTIF";
+        reticle.style.display = 'none';
+      }
+    }
+
+    document.getElementById('btn-mode-camera').addEventListener('click', () => switchMode('CAMERA'));
+    document.getElementById('btn-mode-touch').addEventListener('click', () => switchMode('TOUCH'));
+
+    /* ==================================================
+       EVENT LISTENERS & KAWALAN SKRIN
+       ================================================== */
+    document.getElementById('btn-start').addEventListener('click', () => {
+      audio.init();
+      document.getElementById('modal-start').classList.add('hidden');
+      switchMode('CAMERA');
+      loadQuestion(currentQIndex);
+    });
+
+    document.getElementById('btn-next').addEventListener('click', () => {
+      document.getElementById('modal-feedback').classList.add('hidden');
+      currentQIndex++;
+      if (currentQIndex < QUESTIONS.length) {
+        loadQuestion(currentQIndex);
+      } else {
+        // BAHAGIAN 10: SKRIN TAMAT PERMAINAN
+        document.getElementById('final-score').innerText = score;
+        document.getElementById('final-coins').innerText = coins;
+        document.getElementById('final-correct').innerText = correctCount;
+        document.getElementById('modal-end').classList.remove('hidden');
+
+        // Mainkan Ucapan Suara Bahasa Melayu (Web Speech API)
+        if ('speechSynthesis' in window) {
+          const speech = new SpeechSynthesisUtterance("Tahniah, detektif usahawan! Kamu berjaya menyelesaikan semua misi Khairul Amir! Teruskan usaha, berani mencuba dan jangan mudah berputus asa! Jom jadi usahawan hebat!");
+          speech.lang = 'ms-MY';
+          window.speechSynthesis.speak(speech);
+        }
+      }
+    });
+
+    document.getElementById('btn-retry').addEventListener('click', () => {
+      document.getElementById('modal-feedback').classList.add('hidden');
+      loadQuestion(currentQIndex);
+    });
+
+    document.getElementById('btn-restart').addEventListener('click', () => {
+      currentQIndex = 0;
+      score = 0;
+      coins = 0;
+      correctCount = 0;
+      document.getElementById('score-count').innerText = 0;
+      document.getElementById('coin-count').innerText = 0;
+      document.getElementById('modal-end').classList.add('hidden');
+      loadQuestion(currentQIndex);
+    });
+
+    // Kawalan Audio Toggle
+    document.getElementById('btn-sfx').addEventListener('click', (e) => {
+      audio.sfxOn = !audio.sfxOn;
+      e.currentTarget.classList.toggle('off', !audio.sfxOn);
+    });
+
+    document.getElementById('btn-music').addEventListener('click', (e) => {
+      audio.musicOn = !audio.musicOn;
+      e.currentTarget.classList.toggle('off', !audio.musicOn);
+    });
+  </script>
+</body>
+</html>
